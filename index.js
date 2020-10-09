@@ -13,6 +13,13 @@ server.use(express.json())
 server.use("/users", userRouter)
 server.use("/posts", postRouter)
 
+server.use((err, req, res, next) => {
+    console.log(err)
+    res.status(500).json({
+        message: "something went wrong"
+    })
+})
+
 server.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`)
 })

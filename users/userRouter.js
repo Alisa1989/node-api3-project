@@ -6,50 +6,26 @@ const postDb = require("../posts/postDb");
 
 const router = express.Router();
 
-router.post('/', (req, res) => {
-  if(!req.body.name)
-  {
-    return res.status(400).json({
-      errorMessage: "Please provide a body for the user"
-    })
-  }
+router.post('/', validateUser(), (req, res) => {
   userDb
   .insert(req.body)
   .then((user)=> {
     res.status(201).json(user);
   })
   .catch((error) => {
-    console.log(error);
-    res.status(500).json({
-      error: "something went wrong"
-    })
+    next(error)
   })
 });
 
-router.post('/:id/posts', (req, res) => {
+router.post('/:id/posts', validateUserId(), validatePost(), (req, res) => {
   req.body.user_id = req.params.id;
-  if(!req.body.text)
-  {
-    return res.status(400).json({
-      errorMessage: "Please provide a body for the post"
-    })
-  }
   postDb
   .insert(req.body)
   .then((post)=> {
-    if(!post){
-      res.status(404).json({
-        message: "The user with the specified ID couldn't be found"
-      })
-    }else {
       res.status(201).json(post);
-    }
   })
   .catch((error) => {
-    console.log(error);
-    res.status(500).json({
-      error: "something went wrong"
-    })
+    next(error)
   })
 });
 
@@ -60,110 +36,99 @@ router.get('/', (req, res) => {
       res.status(200).json(users)
     })
     .catch((error) => {
-      console.log(error);
-      res.status(500).json({
-        message: "something went wrong",
-      });
+      next(error)
     });  
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', validateUserId(), (req, res) => {
   userDb
     .getById(req.params.id)
     .then((user) => {
-      if(user) {
         return res.status(200).json(user)
-      } else {
-        return res.status(404).json({
-          message: "The user with the specified ID does not exist"
-        })
-      }
     })
     .catch((error) => {
-      console.log(error);
-      res.status(500).json({
-        message: "something went wrong",
-      });
+      next(error)
     });  
 });
 
-router.get('/:id/posts', (req, res) => {
+router.get('/:id/posts', validateUserId(), (req, res) => {
   userDb
     .getUserPosts(req.params.id)
     .then((user) => {
-      if (!user){
-        res.status(404).json({
-          message: "The user with the specified ID does not exist"
-        })
-      } else {
         res.status(200).json(user)
-      }
     })
     .catch((error) => {
-      console.log(error);
-      res.status(500).json({
-        message: "something went wrongr",
-      });
+      next(error)
     });  
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', validateUserId(), (req, res) => {
   userDb
     .remove(req.params.id)
     .then((user) => {
-      if(user) {
         return res.status(200).json(user)
-      } else {
-        return res.status(404).json({
-          message: "The user with the specified ID does not exist"
-        })
-      }
     })
     .catch((error) => {
-      console.log(error);
-      res.status(500).json({
-        message: "something went wrong",
-      });
+      next(error)
     });  
 });
 
 // updates user
-router.put('/:id', (req, res) => {
-  if (!req.body.name){
-    return res.status(400).json({
-      message: "please provide a valid name"
-    })}
+router.put('/:id', validateUserId(), validateUser(),(req, res) => {
     userDb
     .update(req.params.id, req.body)
     .then((user) => {
-      if (!user){
-        res.status(404).json({
-          message: "The user with the specified ID does not exist"
-        })
-      } else {
         res.status(200).json(user)
-      }
     })
     .catch((error) => {
-      console.log(error);
-      res.status(500).json({
-        message: "something went wrongr",
-      });
+      next(error)
     })
 });
 
 //custom middleware
 
-function validateUserId(req, res, next) {
-  // do your magic!
+function validateUserId() {
+return (req, res, next) => {
+  userDb
+    .getById(req.params.id)
+    .then((user)=> {
+      if(!user){
+        res.status(404).json({
+          message: "user with specified ID does not exist!"
+        })
+      } else {
+        req.user = user;
+        next()
+      }
+    })
+    .catch((error) => {
+      console.log(error);
+      res.status(500).json({
+        message: "Error retrieving the user",
+      });
+    });
+}}
+
+function validateUser() {
+  return (req, res, next) => {
+  if (!req.body.name){
+    return res.status(400).json({
+      message: "please provide a valid name for the user"
+    })
+  };
+  next();
+}
 }
 
-function validateUser(req, res, next) {
-  // do your magic!
+function validatePost() {
+  return (req, res, next) => {
+    if (!req.body.text){
+      return res.status(400).json({
+        message: "please provide valid text for the post"
+      })
+    };
+    next();
 }
-
-function validatePost(req, res, next) {
-  // do your magic!
 }
 
 module.exports = router;
